@@ -13,3 +13,8 @@
  *= require_tree .
  *= require_self
  */
+
+//noinspection CssUnknownTarget
+@import "bootstrap-sass-official/assets/stylesheets/_bootstrap-sprockets";
+//noinspection CssUnknownTarget
+@import "bootstrap-sass-official/assets/stylesheets/_bootstrap";
