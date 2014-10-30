@@ -38256,8 +38256,14 @@ angular.module("templates", []);
       return $routeProvider.when('/', {
         templateUrl: 'index.html',
         controller: 'RecipesController'
+      }).when('/recipe/new', {
+        templateUrl: 'form.html',
+        controller: 'RecipeController'
       }).when('/recipe/:recipeId', {
         templateUrl: 'show.html',
+        controller: 'RecipeController'
+      }).when('/recipe/:recipeId/edit', {
+        templateUrl: 'form.html',
         controller: 'RecipeController'
       });
     }
@@ -38277,17 +38283,57 @@ angular.module("templates", []);
       Recipe = $resource('/recipe/:recipeId', {
         recipeId: "@id",
         format: 'json'
+      }, {
+        'save': {
+          method: 'PUT'
+        },
+        'create': {
+          method: 'POST'
+        }
       });
-      Recipe.get({
-        recipeId: $routeParams.recipeId
-      }, (function(recipe) {
-        return $scope.recipe = recipe;
-      }), (function(httpResponse) {
-        $scope.recipe = null;
-        return flash.error = "There is no recipe with ID: " + $routeParams.recipeId;
-      }));
-      return $scope.back = function() {
+      if ($routeParams.recipeId) {
+        Recipe.get({
+          recipeId: $routeParams.recipeId
+        }, (function(recipe) {
+          return $scope.recipe = recipe;
+        }), (function(httpResponse) {
+          $scope.recipe = null;
+          return flash.error = "There is no recipe with ID: " + $routeParams.recipeId;
+        }));
+      } else {
+        $scope.recipe = {};
+      }
+      $scope.back = function() {
         return $location.path('/');
+      };
+      $scope.edit = function() {
+        return $location.path("/recipe/" + $scope.recipe.id + "/edit");
+      };
+      $scope.cancel = function() {
+        if ($scope.recipe.id) {
+          return $location.path("/recipe/" + $scope.recipe.id);
+        } else {
+          return $location.path("/");
+        }
+      };
+      $scope.save = function() {
+        var onError;
+        onError = function(_httpResponse) {
+          return flash.error = "Something went wrong";
+        };
+        if ($scope.recipe.id) {
+          return $scope.recipe.$save((function() {
+            return $location.path("/recipe/" + $scope.recipe.id);
+          }), onError);
+        } else {
+          return Recipe.create($scope.recipe, (function(newRecipe) {
+            return $location.path("/recipe/" + newRecipe.id);
+          }), onError);
+        }
+      };
+      return $scope["delete"] = function() {
+        $scope.recipe.$delete();
+        return $scope.back();
       };
     }
   ]);
@@ -38317,25 +38363,38 @@ angular.module("templates", []);
       } else {
         $scope.recipes = [];
       }
-      return $scope.view = function(recipeId) {
+      $scope.view = function(recipeId) {
         return $location.path("/recipe/" + recipeId);
+      };
+      $scope.newRecipe = function() {
+        return $location.path('/recipe/new');
+      };
+      return $scope.edit = function(recipeId) {
+        return $location.path("/recipe/" + recipeId + "/edit");
       };
     }
   ]);
 
 }).call(this);
 // Angular Rails Template
+// source: app/assets/javascripts/templates/form.html
+
+angular.module("templates").run(["$templateCache", function($templateCache) {
+  $templateCache.put("form.html", '<aside class="flash row">\n    <article flash-alert duration="0" active-class="alert" class="col-md-6 col-md-offset-3">\n        {{flash.message}}\n    </article>\n</aside>\n<section>\n    <form class="form-horizontal" role="form" class="edit-user">\n        <div class="form-group" ng-class="{\'has-warning has-feedback\':errors.name}">\n            <label\n                    for="name"\n                    class="col-md-2 control-label col-md-offset-2">\n                Name\n            </label>\n            <div class="col-md-5">\n                <input type="text" name="name" class="form-control" placeholder="e.g. Baked Alaska" ng-model="recipe.name">\n            </div>\n        </div>\n        <div class="form-group" ng-class="{\'has-warning has-feedback\':errors.name}">\n            <label\n                    for="instructions"\n                    class="col-md-2 control-label col-md-offset-2">\n                Instructions\n            </label>\n            <div class="col-md-5">\n                <textarea name="instructions" class="form-control" ng-model=\'recipe.instructions\' placeholder="e.g. Flambé for 20 seconds">\n                </textarea>\n            </div>\n        </div>\n        <div class="form-group">\n            <div class="col-md-offset-2 col-md-3">\n                <button class="btn btn-default" ng-click="cancel()"> Cancel</button>\n            </div>\n            <div class="col-md-4 text-right">\n                <button class="btn btn-primary" ng-click="save()"> Save </button>\n            </div>\n        </div>\n    </form>\n</section>')
+}]);
+
+// Angular Rails Template
 // source: app/assets/javascripts/templates/index.html
 
 angular.module("templates").run(["$templateCache", function($templateCache) {
-  $templateCache.put("index.html", '<header class="row">\n    <h1 class="text-center col-md-6 col-md-offset-3">Find recipes</h1>\n</header>\n<section class="row">\n    <form>\n        <div class="form-group col-md-6 col-md-offset-3">\n            <label for="keywords" class="sr-only">Keywords</label>\n            <input ng-model="keywords" name="keywords" type="text" autofocus class="form-control" placeholder="Some keywords to search for recipe">\n        </div>\n        <div class="form-group col-md-6 col-md-offset-3 text-center">\n            <button ng-click="search(keywords)" class="btn btn-primary btn-lg">Search</button>\n        </div>\n    </form>\n</section>\n<hr>\n<secton class="row" ng-if="recipes && recipes.length">\n    <h1 class="text-center h2">Results</h1>\n    <ul class="list-unstyled">\n        <li ng-repeat="recipe in recipes">\n            <section class="well col-md-6 col-md-offset-3">\n                <h1 class="h3 col-md-6 text-right" style="margin-top: 0"><a href ng-click="view(recipe.id)">{{recipe.name}}</a></h1>\n                <div class="col-md-6">\n                    <button class="btn btn-info">Edit</button>\n                    <button class="btn btn-danger">Delete</button>\n                </div>\n            </section>\n        </li>\n    </ul>\n</secton>')
+  $templateCache.put("index.html", '<header class="row">\n    <h1 class="text-center col-md-6 col-md-offset-3">Find recipes</h1>\n</header>\n<section class="row">\n    <form>\n        <div class="form-group col-md-6 col-md-offset-3">\n            <label for="keywords" class="sr-only">Keywords</label>\n            <input ng-model="keywords" name="keywords" type="text" autofocus class="form-control" placeholder="Some keywords to search for recipe">\n        </div>\n        <div class="form-group col-md-6 col-md-offset-3 text-center">\n            <button ng-click="search(keywords)" class="btn btn-primary btn-lg">Search</button>\n            <button ng-click="newRecipe()" class="btn btn-info btn-lg">New Recipe</button>\n        </div>\n    </form>\n</section>\n<hr>\n<secton class="row" ng-if="recipes && recipes.length">\n    <h1 class="text-center h2">Results for {{$routeParams.keywords}}</h1>\n    <ul class="list-unstyled">\n        <li ng-repeat="recipe in recipes">\n            <section class="well col-md-6 col-md-offset-3">\n                <h1 class="h3 col-md-6 text-right" style="margin-top: 0"><a href ng-click="view(recipe.id)">{{recipe.name}}</a></h1>\n                <div class="col-md-6">\n                    <button class="btn btn-info" ng-click="edit(recipe.id)">Edit</button>\n                </div>\n            </section>\n        </li>\n    </ul>\n</secton>')
 }]);
 
 // Angular Rails Template
 // source: app/assets/javascripts/templates/show.html
 
 angular.module("templates").run(["$templateCache", function($templateCache) {
-  $templateCache.put("show.html", '<aside class="flash row">\n    <article flash-alert duration="0" active-class="alert" class="col-md-6 col-md-offset-3 col-sm-12">\n        {{flash.message}}\n    </article>\n</aside>\n<section class="col-md-6 col-md-offset-3">\n    <article class="panel panel-info">\n        <header class="panel-heading"><h1>{{recipe.name}}</h1></header>\n        <p class="panel-body">\n            {{recipe.instructions}}\n        </p>\n    </article>\n    <button ng-click="back()" class="btn btn-default">\n        &larr; Back\n    </button>\n</section>')
+  $templateCache.put("show.html", '<aside class="flash row">\n    <article flash-alert duration="0" active-class="alert" class="col-md-6 col-md-offset-3 col-sm-12">\n        {{flash.message}}\n    </article>\n</aside>\n<section class="col-md-6 col-md-offset-3">\n    <article class="panel panel-info">\n        <header class="panel-heading"><h1>{{recipe.name}}</h1></header>\n        <p class="panel-body">\n            {{recipe.instructions}}\n        </p>\n    </article>\n    <section>\n        <div class="col-md-3">\n            <button ng-click="back()" class="btn btn-default">\n                &larr; Back\n            </button>\n        </div>\n        <div class="col-md-9 text-right">\n            <button ng-click="edit()" class="btn btn-info">Edit</button>\n            <button ng-click="delete()" class="btn btn-danger">Delete</button>\n        </div>\n    </section>\n\n</section>')
 }]);
 
 // This is a manifest file that'll be compiled into application.js, which will include all the files
